@@ -22,6 +22,3 @@ Installation de Fail2ban pour protéger contre les attaques
 Mise en place d’un certificat SSL avec Let's Encrypt
 Optimisation et accessibilité
 
-4 -Ajout du support WebDAV pour un accès distant aux fichiers
-Configuration d’un système de sauvegarde automatique
-Possibilité d’ajouter une authentification multi-facteurs (2FA)
