@@ -1,18 +1,12 @@
 # 1. Installation de Nextcloud sur Rocky Linux
 
-## Commande installer : 
-
-- sudo dnf update -y
-- sude dnf tar
-
-
 ## install ip fixe
 
 ```powershell
 sudo nmtui
 ```
 
-## Changement de port 
+## Changement de port SSH
 
 ```powershell
 firewall-cmd --list-all
@@ -52,23 +46,22 @@ EXIT;
 ## Téléchargement et installation de Nextcloud
 
 ```bash
-
 cd /var/www/
 
-wget https://download.nextcloud.com/server/releases/latest.tar.bz2
+wget https://download.nextcloud.com/server/releases/nextcloud-31.0.0.zip
 ```
 
 Extraction et déplacement des fichiers :
 ```bash
-tar -xjf latest.tar.bz2
-sudo mv nextcloud /var/www/html/
+sudo mv nextcloud-31.0.0.zip /var/www
+unzip nextcloud-31.0.0.zip
 ```
 
 ## Configuration des permissions
 
 ```bash
-sudo chown -R apache:apache /var/www/html/nextcloud
-sudo chmod -R 755 /var/www/html/nextcloud
+sudo chown -R apache:apache /var/www/nextcloud
+sudo chmod -R 755 /var/www/nextcloud
 ```
 
 ## Configuration d'Apache
@@ -79,9 +72,9 @@ sudo nano /etc/httpd/conf.d/nextcloud.conf
 ```
 
 Ajout du contenu suivant :
-```apache
+```powershell
 <VirtualHost *:80>
-    ServerName yourdomain.com
+    ServerName 193.250.5.69
     DocumentRoot /var/www/nextcloud
 
     <Directory /var/www/nextcloud/>
@@ -103,23 +96,8 @@ sudo systemctl restart httpd
 
 Accéder à l'interface web de Nextcloud :
 ```
-http://<IP_DE_TON_SERVEUR>
+http://<193.250.5.69>
 ```
-
-Créer un compte administrateur et configurer la base de données avec :
-- Nom de la base : `nextcloud`
-- Nom d'utilisateur : `nextcloud_user`
-- Mot de passe : `mon_mot_de_passe`
-- Hôte : `localhost`
-
-
-## Vérification
-
-Tester l'accès à Nextcloud :
-```bash
-systemctl status httpd mariadb
-```
-
 
 ## Sécurisation
 
@@ -163,6 +141,37 @@ sudo nano /etc/dnf/automatic.conf
 sudo systemctl enable --now dnf-automatic-install.timer
 systemctl list-timers --all | grep dnf
 ```
+
+### HTTPS
+```powershell
+sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 -keyout /etc/pki/tls/private/selfsigned.key   -out /etc/pki/tls/certs/selfsigned.crt   -subj "/C=FR/ST=France/L=Ville/O=Organisation/CN=193.250.5.69"
+
+sudo nano /etc/httpd/conf.d/nextcloud-ssl.conf
+```
+
+#### Modification du fiche 
+
+```powershell 
+<VirtualHost *:443>
+    ServerName 193.250.5.69
+    DocumentRoot /var/www/nextcloud
+    <Directory /var/www/nextcloud/>
+        AllowOverride All
+        Require all granted
+    </Directory>
+
+    SSLEngine on
+    SSLCertificateFile /etc/pki/tls/certs/selfsigned.crt
+    SSLCertificateKeyFile /etc/pki/tls/private/selfsigned.key
+</VirtualHost>
+```
+```powershell
+sudo dnf install mod_ssl -y
+sudo systemctl restart httpd
+sudo systemctl status httpd
+```
+
+
 
 ### Problème de version de php
 
@@ -217,16 +226,22 @@ global:
   scrape_interval: 15s  # Fréquence de collecte des données
 
 scrape_configs:
-  - job_name: 'node'
-    static_configs:
-      - targets: ['localhost:9100']
+  
+job_name: 'node'
+  static_configs:
+targets: ['localhost:9100']
+
+  
+job_name: 'prometheus'
+  static_configs:
+targets: ['193.250.5.69:9091']
 ```
 
 ---
 
 ## 3. Configuration du Service Systemd
 
-### Création du fichier de service
+### Création du fichier de service pour prometheus
 ```bash
 sudo nano /etc/systemd/system/prometheus.service
 ```
@@ -238,10 +253,10 @@ Description=Prometheus
 After=network.target
 
 [Service]
-ExecStart=/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/prometheus
-Restart=always
 User=prometheus
 Group=prometheus
+ExecStart=/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --web.listen-address=":9091"
+Restart=always
 
 [Install]
 WantedBy=multi-user.target
@@ -249,35 +264,14 @@ WantedBy=multi-user.target
 
 ### Activation et Démarrage du Service
 ```bash
+sudo mkdir -p /data
+sudo chown -R prometheus:prometheus /data
 sudo systemctl daemon-reload
 sudo systemctl enable --now prometheus
 sudo systemctl status prometheus
 ```
 
----
 
-# Modification du fichier de configuration de Prometheus
-
-```bash
-sudo nano /etc/prometheus/prometheus.yml
-```
-
-Ajout du contenu suivant :
-```powershell
-global:
-  scrape_interval: 15s  # Fréquence de collecte des données
-
-scrape_configs:
-  - job_name: 'node'
-    static_configs:
-      - targets: ['localhost:9100']
-
-  - job_name: 'prometheus'
-    static_configs:
-      - targets: ['193.250.5.69:9091']
-```
-
----
 
 # Installation et Configuration de Node Exporter
 
@@ -288,7 +282,7 @@ cd node_exporter-1.9.0.linux-amd64/
 sudo mv node_exporter /usr/local/bin/
 ```
 
-## 2. Création du fichier de service
+## 2. Création du fichier de service 
 ```bash
 sudo nano /etc/systemd/system/node_exporter.service
 ```
