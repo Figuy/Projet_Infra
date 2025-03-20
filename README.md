@@ -15,5 +15,5 @@ Installation et configuration de Nextcloud
 
 3 -Activation du pare-feu 
 Installation de Fail2ban pour protéger contre les attaques
-Mise en place d’un certificat SSL avec pour nextcloud
+Mise en place d’un certificat SSL pour nextcloud
 
