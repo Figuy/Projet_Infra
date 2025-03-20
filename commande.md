@@ -187,3 +187,210 @@ sudo nano /etc/php-fpm.d/www.conf
 sudo systemctl restart httpd
 sudo systemctl restart php-fpm
 ```
+
+# Installation et Configuration de Prometheus
+
+## 1. Installation de Prometheus
+
+```bash
+sudo wget https://github.com/prometheus/prometheus/releases/download/v3.2.1/prometheus-3.2.1.linux-amd64.tar.gz
+sudo tar -xvf prometheus-*.linux-amd64.tar.gz
+sudo mv prometheus /usr/local/bin/
+sudo mv promtool /usr/local/bin/
+```
+
+## 2. Configuration de Prometheus
+
+### Création du dossier de configuration
+```bash
+sudo mkdir -p /etc/prometheus
+```
+
+### Édition du fichier de configuration
+```bash
+sudo nano /etc/prometheus/prometheus.yml
+```
+
+Ajout du contenu suivant :
+```powershell
+global:
+  scrape_interval: 15s  # Fréquence de collecte des données
+
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+```
+
+---
+
+## 3. Configuration du Service Systemd
+
+### Création du fichier de service
+```bash
+sudo nano /etc/systemd/system/prometheus.service
+```
+
+Ajout du contenu suivant :
+```powershell
+[Unit]
+Description=Prometheus
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/prometheus --config.file=/etc/prometheus/prometheus.yml --storage.tsdb.path=/var/lib/prometheus
+Restart=always
+User=prometheus
+Group=prometheus
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Activation et Démarrage du Service
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now prometheus
+sudo systemctl status prometheus
+```
+
+---
+
+# Modification du fichier de configuration de Prometheus
+
+```bash
+sudo nano /etc/prometheus/prometheus.yml
+```
+
+Ajout du contenu suivant :
+```powershell
+global:
+  scrape_interval: 15s  # Fréquence de collecte des données
+
+scrape_configs:
+  - job_name: 'node'
+    static_configs:
+      - targets: ['localhost:9100']
+
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['193.250.5.69:9091']
+```
+
+---
+
+# Installation et Configuration de Node Exporter
+
+## 1. Installation de Node Exporter
+```bash
+sudo dnf install -y node_exporter
+cd node_exporter-1.9.0.linux-amd64/
+sudo mv node_exporter /usr/local/bin/
+```
+
+## 2. Création du fichier de service
+```bash
+sudo nano /etc/systemd/system/node_exporter.service
+```
+
+Ajout du contenu suivant :
+```powershell
+[Unit]
+Description=Node Exporter
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/node_exporter
+Restart=always
+User=prometheus
+Group=prometheus
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## 3. Activation et Démarrage de Node Exporter
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable --now node_exporter
+sudo systemctl status node_exporter
+```
+
+---
+
+# Installation et Configuration de Loki et Promtail
+
+## 1. Installation de Loki et Promtail
+```bash
+sudo dnf install loki promtail
+```
+
+## 2. Configuration de Promtail
+
+### Modification du fichier de configuration
+```bash
+sudo mv /etc/promtail-config.yml /etc/promtail/promtail.yml
+sudo nano /etc/promtail/promtail.yml
+```
+
+Ajout du contenu suivant :
+```powershell
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 9095
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://localhost:3100/loki/api/v1/push  
+
+scrape_configs:
+  - job_name: system-logs
+    static_configs:
+      - targets: ['localhost']
+        labels:
+          job: varlogs
+          path: /var/log/*log
+```
+
+---
+
+# Création du fichier de service pour Promtail
+
+```bash
+sudo nano /etc/systemd/system/promtail.service
+```
+
+Ajout du contenu suivant :
+```powershell
+[Unit]
+Description=Promtail service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=promtail
+ExecStart=/usr/bin/promtail -config.file /etc/promtail/promtail.yml
+
+TimeoutSec=60
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=multi-user.target
+```
+
+---
+
+# Permissions et Démarrage du Service
+
+Ajout des permissions nécessaires :
+```powershell
+sudo usermod -aG root promtail
+sudo chmod 644 /var/log/messages
+sudo systemctl daemon-reload
+sudo systemctl enable --now promtail
+sudo systemctl status promtail
+```

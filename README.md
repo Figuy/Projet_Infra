@@ -12,13 +12,9 @@ Configuration de PHP et de la base de données
 Mise en place d’un proxy inverse (optionnel(Nginx/Traefik)) pour la gestion des accès
 Installation et configuration de Nextcloud
 
-2 -Installation via paquets ou docker-compose
-Configuration des utilisateurs et permissions
-Intégration avec la base de données
-Sécurisation du serveur
+2 -Installation d'un monitoring
 
 3 -Activation du pare-feu (UFW/IPTables)
 Installation de Fail2ban pour protéger contre les attaques
-Mise en place d’un certificat SSL avec Let's Encrypt
-Optimisation et accessibilité
+Mise en place d’un certificat SSL avec Let's Encrypt pour nextcloud
 
